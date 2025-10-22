@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Galaxy Arcade — Single File Gaming Site</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --glass: rgba(255,255,255,0.06);
+      --glass-2: rgba(255,255,255,0.04);
+      --accent: #8be9fd;
+      --accent-2: #7b61ff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+
+    /* Galaxy background */
+    body{
+      background: radial-gradient(ellipse at 10% 20%, rgba(123,97,255,0.12), transparent 8%),
+                  radial-gradient(ellipse at 90% 80%, rgba(139,233,253,0.06), transparent 10%),
+                  linear-gradient(180deg,#050417 0%, #09061a 50%, #070616 100%);
+      color: #e6eef8;
+      overflow-y: auto;
+    }
+    /* Starfield layers */
+    body::before, body::after{
+      content: "";
+      position:fixed;inset:0;z-index:-1;pointer-events:none;
+      background-repeat:repeat;
+      opacity:0.9;
+    }
+    /* tiny stars */
+    body::before{
+      background-image: radial-gradient(white 1px, rgba(255,255,255,0) 1px);
+      background-size: 3px 3px;
+      filter: drop-shadow(0 0 1px rgba(255,255,255,0.08));
+      transform: scale(1.2);
+      animation: drift 60s linear infinite;
+    }
+    /* bigger twinkling stars */
+    body::after{
+      background-image: radial-gradient(white 1.5px, rgba(255,255,255,0) 1.5px);
+      background-size: 60px 60px;
+      opacity:0.5;
+      animation: drift 120s linear infinite reverse;
+    }
+    @keyframes drift{from{transform:translateY(0)}to{transform:translateY(-200px)}}
+
+    /* Page chrome */
+    .app{
+      min-height:100vh;
+      display:flex;flex-direction:column;
+      gap:18px;padding:28px;
+      backdrop-filter: blur(6px);
+    }
+
+    header{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:12px;
+    }
+    .logo{
+      width:56px;height:56px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 6px 25px rgba(123,97,255,0.18);
+      font-weight:800;color:#071124;font-size:20px
+    }
+    h1{margin:0;font-size:20px;font-weight:700;letter-spacing:0.2px}
+    p.lead{margin:0;color:rgba(230,238,248,0.75);font-size:13px}
+
+    /* Controls */
+    .controls{display:flex;gap:10px;align-items:center}
+    .btn{background:var(--glass);border:1px solid rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;color:inherit;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#071124;font-weight:700;border:none;box-shadow:0 8px 20px rgba(123,97,255,0.12)}
+
+    main{display:grid;grid-template-columns:1fr;gap:18px}
+
+    /* Section cards */
+    .section{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;padding:14px;border:1px solid rgba(255,255,255,0.03);
+      box-shadow: 0 6px 30px rgba(2,6,23,0.5);
+    }
+    .section h2{margin:0 0 10px 0;font-size:15px}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+
+    .slot{
+      min-height:110px;border-radius:10px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;
+      background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));border:1px dashed rgba(255,255,255,0.03);
+      transition:transform .18s ease, box-shadow .18s ease;cursor:pointer;position:relative;overflow:hidden
+    }
+    .slot:hover{transform:translateY(-6px);box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+    .slot .title{font-weight:600;font-size:14px;margin:0}
+    .slot .meta{font-size:12px;color:rgba(230,238,248,0.7)}
+
+    .slot.empty{display:grid;place-items:center;color:rgba(230,238,248,0.45);font-weight:600}
+
+    /* Card content when filled */
+    .game-card{display:flex;flex-direction:column;gap:8px}
+    .thumb{height:90px;border-radius:8px;background-size:cover;background-position:center;border:1px solid rgba(0,0,0,0.2)}
+    .actions{display:flex;gap:6px}
+    .small{padding:6px 8px;font-size:12px;border-radius:8px}
+
+    /* Floating add button */
+    .fab{position:fixed;right:28px;bottom:28px;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;z-index:40;box-shadow:0 10px 30px rgba(123,97,255,0.2)}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:linear-gradient(180deg, rgba(1,2,6,0.6), rgba(1,2,6,0.85));display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{width:min(720px,96%);background:linear-gradient(180deg, rgba(6,9,20,0.9), rgba(10,12,25,0.95));border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,0.03)}
+    .form-row{display:flex;gap:10px;margin-bottom:10px}
+    .form-row input,.form-row select,textarea{flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);color:inherit}
+    textarea{min-height:80px;resize:vertical}
+
+    footer{display:flex;justify-content:space-between;align-items:center;color:rgba(230,238,248,0.6);font-size:13px;padding:6px 2px}
+
+    /* Responsive tweaks */
+    @media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)}.brand h1{font-size:16px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">GA</div>
+        <div>
+          <h1>Galaxy Arcade</h1>
+          <p class="lead">A clean single-file gaming launcher — add games, save locally, and play.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="importBtn">Import</button>
+        <button class="btn" id="exportBtn">Export</button>
+        <button class="btn primary" id="openAll">Open Library</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Sections: Featured, Library, Recently Added -->
+      <section class="section" data-section="featured">
+        <h2>Featured</h2>
+        <div class="grid" id="featuredGrid"></div>
+      </section>
+
+      <section class="section" data-section="library">
+        <h2>Library</h2>
+        <div class="grid" id="libraryGrid"></div>
+      </section>
+
+      <section class="section" data-section="recent">
+        <h2>Recently Added</h2>
+        <div class="grid" id="recentGrid"></div>
+      </section>
+    </main>
+
+    <footer>
+      <div>Local-only — your games stay in your browser. · Slots are persistent via localStorage.</div>
+      <div>Tip: click an empty slot to add a game directly to it.</div>
+    </footer>
+
+    <!-- Floating add button -->
+    <button class="fab btn primary" id="addBtn" title="Add game">＋</button>
+
+    <!-- Modal for adding games -->
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 style="margin-top:0">Add a Game</h3>
+        <div style="font-size:13px;color:rgba(230,238,248,0.8);margin-bottom:10px">Fill the form below. You can target a specific slot by clicking an empty slot, or choose "Auto" to place in the first free slot.</div>
+        <div class="form-row">
+          <input id="gameTitle" placeholder="Title (required)" />
+          <input id="gameUrl" placeholder="URL (use https:// or /local-path)" />
+        </div>
+        <div class="form-row">
+          <input id="gameThumb" placeholder="Thumbnail URL (optional)" />
+          <select id="gameSection">
+            <option value="featured">Featured</option>
+            <option value="library" selected>Library</option>
+            <option value="recent">Recently Added</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px">
+          <textarea id="gameDesc" placeholder="Short description (optional)"></textarea>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+          <button class="btn" id="cancelAdd">Cancel</button>
+          <button class="btn primary" id="saveAdd">Save Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="fileInput" accept="application/json" style="display:none" />
+  </div>
+
+  <script>
+    /* Data model: store per-section arrays of slot objects or nulls. We create N slots per section. */
+    const SLOTS_PER_SECTION = 6;
+    const DEFAULT_STATE = {
+      featured: Array(SLOTS_PER_SECTION).fill(null),
+      library: Array(SLOTS_PER_SECTION).fill(null),
+      recent: Array(SLOTS_PER_SECTION).fill(null)
+    };
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem('galaxy-arcade');
+        if(!raw) return structuredClone(DEFAULT_STATE);
+        const parsed = JSON.parse(raw);
+        // normalize
+        for(const k of ['featured','library','recent']){
+          if(!Array.isArray(parsed[k])) parsed[k] = Array(SLOTS_PER_SECTION).fill(null);
+          // pad or trim
+          parsed[k] = parsed[k].slice(0,SLOTS_PER_SECTION);
+          while(parsed[k].length < SLOTS_PER_SECTION) parsed[k].push(null);
+        }
+        return parsed;
+      }catch(e){console.error(e);return structuredClone(DEFAULT_STATE)}
+    }
+
+    function saveState(state){
+      localStorage.setItem('galaxy-arcade', JSON.stringify(state));
+    }
+
+    const state = loadState();
+
+    // Render helpers
+    function createSlotElement(section, index, data){
+      const el = document.createElement('div');
+      el.className = 'slot';
+      el.dataset.section = section;
+      el.dataset.index = index;
+
+      if(!data){
+        el.classList.add('empty');
+        el.innerHTML = '<div style="text-align:center">+ Add</div>';
+        el.addEventListener('click', ()=>openModal(section,index));
+        return el;
+      }
+
+      const card = document.createElement('div');card.className='game-card';
+      const thumb = document.createElement('div');thumb.className='thumb';
+      thumb.style.backgroundImage = data.thumb ? `url(${escapeHtml(data.thumb)})` : 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))';
+      card.appendChild(thumb);
+      const title = document.createElement('div');title.className='title';title.textContent = data.title;
+      const meta = document.createElement('div');meta.className='meta';meta.textContent = data.desc || (data.url ? data.url.replace(/^https?:\/\//,'') : '');
+      card.appendChild(title);card.appendChild(meta);
+
+      const actions = document.createElement('div');actions.className='actions';
+      const play = document.createElement('button');play.className='small btn';play.textContent='Play';
+      play.addEventListener('click', (e)=>{e.stopPropagation(); openGame(data.url);});
+      const edit = document.createElement('button');edit.className='small btn';edit.textContent='Edit';
+      edit.addEventListener('click', (e)=>{e.stopPropagation(); openModal(section,index,data);});
+      const remove = document.createElement('button');remove.className='small btn';remove.textContent='Remove';
+      remove.addEventListener('click', (e)=>{e.stopPropagation(); removeSlot(section,index);});
+      actions.appendChild(play);actions.appendChild(edit);actions.appendChild(remove);
+      card.appendChild(actions);
+
+      el.appendChild(card);
+      // allow clicking to edit
+      el.addEventListener('click', ()=>openModal(section,index,data));
+      return el;
+    }
+
+    function render(){
+      ['featured','library','recent'].forEach(section=>{
+        const grid = document.getElementById(section+'Grid');
+        grid.innerHTML='';
+        state[section].forEach((slot,i)=>{
+          grid.appendChild(createSlotElement(section,i,slot));
+        });
+      });
+    }
+
+    function openGame(url){
+      if(!url){alert('No URL set for this game.');return}
+      // If url looks like an external link, open in new tab
+      if(/^https?:\/\//i.test(url)) window.open(url,'_blank');
+      else window.location.href = url; // relative path
+    }
+
+    // Modal logic
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const titleInput = document.getElementById('gameTitle');
+    const urlInput = document.getElementById('gameUrl');
+    const thumbInput = document.getElementById('gameThumb');
+    const descInput = document.getElementById('gameDesc');
+    const sectionSelect = document.getElementById('gameSection');
+    let activeTarget = {section:null,index:null};
+
+    function openModal(section=null,index=null,data=null){
+      activeTarget = {section,index};
+      modalBackdrop.style.display='flex';
+      // populate
+      titleInput.value = data?.title || '';
+      urlInput.value = data?.url || '';
+      thumbInput.value = data?.thumb || '';
+      descInput.value = data?.desc || '';
+      sectionSelect.value = section || 'library';
+      titleInput.focus();
+    }
+    function closeModal(){ modalBackdrop.style.display='none'; activeTarget = {section:null,index:null}; }
+
+    document.getElementById('cancelAdd').addEventListener('click',(e)=>{e.preventDefault();closeModal();});
+    document.getElementById('addBtn').addEventListener('click',()=>openModal());
+    modalBackdrop.addEventListener('click',(e)=>{ if(e.target === modalBackdrop) closeModal(); });
+
+    document.getElementById('saveAdd').addEventListener('click',()=>{
+      const t = titleInput.value.trim();
+      const u = urlInput.value.trim();
+      const th = thumbInput.value.trim();
+      const d = descInput.value.trim();
+      const sec = sectionSelect.value;
+      if(!t){alert('Please provide a title.'); titleInput.focus(); return}
+      const game = {title:t,url:u,thumb:th,desc:d,added:new Date().toISOString()};
+
+      if(activeTarget.section && Number.isInteger(activeTarget.index)){
+        // place in that slot
+        state[activeTarget.section][activeTarget.index] = game;
+      }else{
+        // auto place in first empty in chosen section, else push to first slot (overwrite)
+        const slotIndex = state[sec].findIndex(s=>s===null);
+        if(slotIndex>=0) state[sec][slotIndex]=game; else state[sec][0]=game;
+      }
+      saveState(state);
+      render();
+      closeModal();
+    });
+
+    function removeSlot(section,index){
+      if(!confirm('Remove this game from the slot?')) return;
+      state[section][index]=null; saveState(state); render();
+    }
+
+    // Export / Import
+    document.getElementById('exportBtn').addEventListener('click',()=>{
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='galaxy-arcade-library.json'; a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change',(e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{const parsed = JSON.parse(reader.result); Object.assign(state, parsed); saveState(state); render(); alert('Imported successfully.');}
+        catch(err){alert('Failed to import: invalid JSON');}
+      };
+      reader.readAsText(f);
+      e.target.value='';
+    });
+
+    // Open library: open all game urls in new tabs (be careful, may be blocked by popup blockers)
+    document.getElementById('openAll').addEventListener('click', ()=>{
+      const urls = [];
+      for(const sec of ['featured','library','recent']){
+        for(const item of state[sec]) if(item && item.url) urls.push(item.url);
+      }
+      if(urls.length===0){alert('No games with URLs to open.'); return}
+      if(!confirm(`Open ${urls.length} game(s) in new tabs? Your browser may block popups.`)) return;
+      for(const u of urls) window.open(u,'_blank');
+    });
+
+    // Utility: simple escape for background-image URLs to avoid breaking CSS if user pastes quotes
+    function escapeHtml(s){ return s.replace(/"/g,'%22').replace(/'/g,'%27'); }
+
+    // initial render
+    render();
+
+    // Small enhancement: show toast if localStorage is unsupported
+    if(!window.localStorage){alert('localStorage not available. Data will not persist.');}
+  </script>
+</body>
+</html>
